@@ -1,0 +1,7 @@
+.*.swp
+.*.swo
+*.o
+*.so
+*.pyc
+
+local_settings.py
