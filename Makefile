@@ -3,7 +3,7 @@ all: ev.so evhttpconn.so
 clean:
 	-rm *.so *.o
 
-%.c: %.pyx
+%.c: %.pyx $(wildcard *.pxd)
 	cython $<
 
 ev.so: EXTRA_LIBS=-lev

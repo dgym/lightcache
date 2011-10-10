@@ -2,7 +2,7 @@ import signal
 import traceback
 import socket
 
-from cpython cimport Py_INCREF, Py_DECREF, PyObject
+from cpython cimport Py_INCREF, Py_DECREF
 
 # a signal
 signal.signal(signal.SIGPIPE, signal.SIG_IGN)
@@ -79,7 +79,8 @@ cdef class Timer(object):
 
 cdef void on_async_socket_read(ev_loop_t *loop, ev_io_t *self, int revents) except *:
     try:
-        (<AsyncSocket>self.data).on_readable(revents)
+        sock = <AsyncSocket>self.data
+        sock.on_readable(revents)
     except:
         ev_unloop(loop, 1)
         raise
@@ -100,6 +101,7 @@ cdef class AsyncSocket(object):
         self.write_buffer = ''
         self.close_on_sent = False
 
+        self.reffed = True
         Py_INCREF(self)
         self.read_watcher.data = <void *>self
         self.write_watcher.data = <void *>self
@@ -119,7 +121,10 @@ cdef class AsyncSocket(object):
         except:
             pass
         self.on_close()
-        Py_DECREF(self)
+
+        if self.reffed:
+            self.reffed = False
+            Py_DECREF(self)
 
     def flush_and_close(self):
         if not self.write_buffer:

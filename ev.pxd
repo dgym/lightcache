@@ -68,6 +68,7 @@ cdef class AsyncServer(object):
     cdef public Loop loop
     cdef object sock
     cdef object Client
+    cdef bint reffed
 
     cdef on_readable(self, int revents)
 

@@ -2,6 +2,7 @@ import re
 
 from ev cimport *
 from cpython cimport PyString_FromStringAndSize, PyString_AsStringAndSize
+from cpython cimport Py_INCREF, Py_DECREF
 
 cdef extern from "Python.h":
     ctypedef int Py_ssize_t
@@ -11,12 +12,12 @@ cdef extern from "evhttpconn.h":
         char *data
         int length
 
-    ctypedef void (*evhttp_connection_on_first_line)(evhttp_string_t first, evhttp_string_t second, evhttp_string_t third, void *data)
-    ctypedef void (*evhttp_connection_on_header)(evhttp_string_t key, evhttp_string_t value, void *data)
-    ctypedef void (*evhttp_connection_on_headers_end)(evhttp_string_t message, void *data)
-    ctypedef void (*evhttp_connection_on_content)(evhttp_string_t content, void *data)
-    ctypedef void (*evhttp_connection_on_complete)(void *data)
-    ctypedef void (*evhttp_connection_on_close)(void *data)
+    ctypedef void (*evhttp_connection_on_first_line)(evhttp_string_t first, evhttp_string_t second, evhttp_string_t third, void *data) except *
+    ctypedef void (*evhttp_connection_on_header)(evhttp_string_t key, evhttp_string_t value, void *data) except *
+    ctypedef void (*evhttp_connection_on_headers_end)(evhttp_string_t message, void *data) except *
+    ctypedef void (*evhttp_connection_on_content)(evhttp_string_t content, void *data) except *
+    ctypedef void (*evhttp_connection_on_complete)(void *data) except *
+    ctypedef void (*evhttp_connection_on_close)(void *data) except *
 
     ctypedef struct evhttp_connection_t:
         pass
@@ -48,23 +49,27 @@ cdef object c2p(evhttp_string_t str):
     return PyString_FromStringAndSize(str.data, str.length)
 
 
-cdef void on_first_line(evhttp_string_t first, evhttp_string_t second, evhttp_string_t third, void *data):
+cdef void on_first_line(evhttp_string_t first, evhttp_string_t second, evhttp_string_t third, void *data) except *:
     (<Connection>data).on_first_line(c2p(first), c2p(second), c2p(third))
 
-cdef void on_header(evhttp_string_t key, evhttp_string_t value, void *data):
+cdef void on_header(evhttp_string_t key, evhttp_string_t value, void *data) except *:
     (<Connection>data).on_header(c2p(key), c2p(value))
 
-cdef void on_headers_end(evhttp_string_t message, void *data):
+cdef void on_headers_end(evhttp_string_t message, void *data) except *:
     (<Connection>data).on_headers_end(c2p(message))
 
-cdef void on_chunk(evhttp_string_t content, void *data):
+cdef void on_chunk(evhttp_string_t content, void *data) except *:
     (<Connection>data).on_chunk(c2p(content))
 
-cdef void on_complete(void *data):
+cdef void on_complete(void *data) except *:
     (<Connection>data).on_complete()
 
-cdef void on_close(void *data):
-    (<Connection>data).on_close()
+cdef void on_close(void *data) except *:
+    cdef Connection conn = <Connection>data
+    try:
+        conn.on_close()
+    finally:
+        Py_DECREF(conn)
 
 
 cdef class Connection(object):
@@ -73,6 +78,7 @@ cdef class Connection(object):
 
     def __init__(self, loop, sock):
         self.sock = sock
+        Py_INCREF(self)
         evhttp_connection_init(&self.this,
                 (<Loop>loop)._loop,
                 sock.fileno(),
