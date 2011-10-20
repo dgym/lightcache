@@ -14,17 +14,14 @@ class Page(object):
         self.key = key
         self.can_cache = True
         self.headers = headers
+        self.response_headers_len = 0
         self.response = ''
         self.partial_response = ''
         self.complete = False
+        self.compressed = ''
         self.last_access = time.time()
         self.last_fetch = self.last_access
         self.listeners = []
-
-    def __del__(self):
-        if self.response or self.partial_response:
-            import pdb;
-            pdb.set_trace()
 
 
 class Cache(object):
@@ -38,8 +35,12 @@ class Cache(object):
         if page:
             page.last_access = time.time()
             if page.complete:
-                client.send(page.response)
-                client.terminate()
+                if client.accept_gzip and page.compressed:
+                    client.send(page.compressed)
+                    client.terminate()
+                else:
+                    client.send(page.response)
+                    client.terminate()
                 return
             elif page.can_cache:
                 client.send(page.partial_response)
@@ -136,6 +137,7 @@ class Client(evhttpconn.Connection):
         self.can_cache = True
         self.host = None
         self.path = None
+        self.accept_gzip = False
 
     def on_first_line(self, method, path, protocol):
         if method != 'GET':
@@ -148,6 +150,8 @@ class Client(evhttpconn.Connection):
             self.can_cache = False
         elif key == 'host':
             self.host = value
+        elif key == 'accept-encoding':
+            self.accept_gzip = 'gzip' in value
 
     def on_headers_end(self, message):
         if self.can_cache:

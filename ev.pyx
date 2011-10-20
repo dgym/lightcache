@@ -206,4 +206,111 @@ cdef class AsyncServer(object):
             import traceback
             traceback.print_exc()
 
+# file reader
+cdef void on_file_reader_read(ev_loop_t *loop, ev_io_t *self, int revents) except *:
+    try:
+        (<FileReader>self.data).on_readable(revents)
+    except:
+        ev_unloop(loop, 1)
+        raise
 
+cdef class FileReader(object):
+    def __init__(self, loop, file):
+        self.loop = loop
+        self.file = file
+        self.read_buffer = ''
+
+        self.reffed = True
+        Py_INCREF(self)
+        self.read_watcher.data = <void *>self
+
+        ev_io_init(&self.read_watcher, on_file_reader_read, file.fileno(), EV_READ)
+        ev_io_start(self.loop._loop, &self.read_watcher)
+
+    def close(self):
+        ev_io_stop(self.loop._loop, &self.read_watcher)
+        self.read_watcher.data = NULL
+        try:
+            self.file.close()
+        except:
+            pass
+        self.on_close()
+
+        if self.reffed:
+            self.reffed = False
+            Py_DECREF(self)
+
+    cdef on_readable(self, int revents):
+        data = self.file.read(10240)
+        if not data:
+            self.close()
+        else:
+            self.read_buffer += data
+            self.on_read()
+
+    def on_read(self):
+        pass
+
+    def on_close(self):
+        pass
+
+# file writer
+cdef void on_file_writer_write(ev_loop_t *loop, ev_io_t *self, int revents) except *:
+    try:
+        (<FileWriter>self.data).on_writeable(revents)
+    except:
+        ev_unloop(loop, 1)
+        raise
+
+cdef class FileWriter(object):
+    def __init__(self, loop, file, data=''):
+        self.loop = loop
+        self.file = file
+        self.write_buffer = ''
+        self.close_on_sent = False
+
+        self.reffed = True
+        Py_INCREF(self)
+        self.write_watcher.data = <void *>self
+
+        ev_io_init(&self.write_watcher, on_file_writer_write, file.fileno(), EV_WRITE)
+        self.write(data)
+
+    def close(self):
+        ev_io_stop(self.loop._loop, &self.write_watcher)
+        self.write_watcher.data = NULL
+        try:
+            self.file.close()
+        except:
+            pass
+        self.on_close()
+
+        if self.reffed:
+            self.reffed = False
+            Py_DECREF(self)
+
+    def flush_and_close(self):
+        if not self.write_buffer:
+            self.close()
+        else:
+            self.close_on_sent = True
+
+    def write(self, data):
+        if not data:
+            return
+        self.write_buffer += data
+        ev_io_start(self.loop._loop, &self.write_watcher)
+
+    cdef on_writeable(self, int revents):
+        sent = self.file.write(self.write_buffer)
+        if sent < 0:
+            self.close()
+        else:
+            self.write_buffer = self.write_buffer[sent:]
+            if not self.write_buffer:
+                ev_io_stop(self.loop._loop, &self.write_watcher)
+                if self.close_on_sent:
+                    self.close()
+
+    def on_close(self):
+        pass

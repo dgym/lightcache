@@ -82,6 +82,28 @@ cdef class AsyncSocket(object):
     cdef public str read_buffer
     cdef str write_buffer
     cdef bint close_on_sent
+    cdef bint reffed
 
     cdef on_readable(self, int revents)
     cdef on_writeable(self, revents)
+
+
+cdef class FileReader(object):
+    cdef ev_io_t read_watcher
+    cdef public Loop loop
+    cdef object file
+    cdef bint reffed
+    cdef public str read_buffer
+
+    cdef on_readable(self, int revents)
+
+
+cdef class FileWriter(object):
+    cdef ev_io_t write_watcher
+    cdef public Loop loop
+    cdef object file
+    cdef bint reffed
+    cdef str write_buffer
+    cdef bint close_on_sent
+
+    cdef on_writeable(self, int revents)
