@@ -4,6 +4,7 @@ import time
 import evhttpconn
 import ev
 
+import compressor
 import settings
 
 from caching_client import CachingClient
@@ -35,7 +36,7 @@ class Cache(object):
         if page:
             page.last_access = time.time()
             if page.complete:
-                if client.accept_gzip and page.compressed:
+                if client.accept_deflate and page.compressed:
                     client.send(page.compressed)
                     client.terminate()
                 else:
@@ -137,7 +138,7 @@ class Client(evhttpconn.Connection):
         self.can_cache = True
         self.host = None
         self.path = None
-        self.accept_gzip = False
+        self.accept_deflate = False
 
     def on_first_line(self, method, path, protocol):
         if method != 'GET':
@@ -151,7 +152,7 @@ class Client(evhttpconn.Connection):
         elif key == 'host':
             self.host = value
         elif key == 'accept-encoding':
-            self.accept_gzip = 'gzip' in value
+            self.accept_deflate = 'deflate' in value
 
     def on_headers_end(self, message):
         if self.can_cache:
@@ -195,6 +196,9 @@ def main():
     # refresh
     interval = 1.0 / settings.cache_refresh_rate
     refresh_timer = ev.Timer(loop, cache.refresh, interval, interval)
+
+    # compression queue polling
+    compress_pop_timer = ev.Timer(loop, compressor.poll, 0.1, 0.1)
 
     # stats
     def on5():

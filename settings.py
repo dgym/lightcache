@@ -12,6 +12,8 @@ max_cache_age = 300
 cache_refresh = 5
 cache_refresh_rate = 20
 
+compression_threads = 2
+
 error_codes = {
     'bad gateway': (502, 'Bad Gateway', 'Bad Gateway'),
 }

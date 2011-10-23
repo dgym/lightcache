@@ -36,7 +36,7 @@ class CachingClient(evhttpconn.Connection):
 
                 headers = re.sub(r'content-length\s*:[^\r]*', '', headers)
 
-                headers = headers[:-2] + ('content-length: %i\r\ncontent-encoding: gzip\r\n\r\n' % len(data))
+                headers = headers[:-2] + ('content-length: %i\r\ncontent-encoding: deflate\r\n\r\n' % len(data))
                 self.page.compressed = headers + data
             compress(self.loop, response[self.page.response_headers_len:], on_compressed)
 
