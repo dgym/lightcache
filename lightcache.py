@@ -198,15 +198,7 @@ def main():
     refresh_timer = ev.Timer(loop, cache.refresh, interval, interval)
 
     # compression queue polling
-    compress_pop_timer = ev.Timer(loop, compressor.poll, 0.1, 0.1)
-
-    # stats
-    def on5():
-        print '%i pages cached, %i bytes allocated, %i clients' % (
-            len(cache.pages),
-            cache.allocated,
-            len(Client.all_clients))
-    t = ev.Timer(loop, on5, 5, 5)
+    compress_pop_timer = ev.Timer(loop, compressor.poll, 0.01, 0.01)
 
     # run forever
     loop.loop(True)

@@ -26,7 +26,6 @@ class CachingClient(evhttpconn.Connection):
         self.close()
 
         # start compression
-        self.page.compressed = ''
         if len(self.page.response) > 100:
             response = self.page.response
             def on_compressed(data):
