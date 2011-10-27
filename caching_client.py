@@ -10,6 +10,15 @@ class CachingClient(evhttpconn.Connection):
         self.loop = loop
         self.page = page
         self.cache = self.page.cache
+        self.can_compress = False
+
+    def on_headers(self, key, value):
+        if key == 'content-type':
+            self.can_compress = False
+            for c in settings.compress_content:
+                if c.match(value):
+                    self.can_compress = True
+                    break
 
     def on_headers_end(self, message):
         self.send_back(message)
@@ -32,9 +41,7 @@ class CachingClient(evhttpconn.Connection):
                 if response != self.page.response:
                     return
                 headers = re.sub(r'(!\r)\n', '\r\n', response[:self.page.response_headers_len])
-
-                headers = re.sub(r'content-length\s*:[^\r]*', '', headers)
-
+                headers = re.sub(r'content-length\s*:[^\r]*\r\n', '', headers)
                 headers = headers[:-2] + ('content-length: %i\r\ncontent-encoding: deflate\r\n\r\n' % len(data))
                 self.page.compressed = headers + data
             compress(self.loop, response[self.page.response_headers_len:], on_compressed)

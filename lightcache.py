@@ -1,5 +1,6 @@
 import socket
 import time
+import re
 
 import evhttpconn
 import ev
@@ -199,6 +200,7 @@ def main():
 
     # compression queue polling
     compress_pop_timer = ev.Timer(loop, compressor.poll, 0.01, 0.01)
+    settings.compress_content = map(re.compile, settings.compress_content)
 
     # run forever
     loop.loop(True)
