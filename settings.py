@@ -22,6 +22,15 @@ error_codes = {
     'bad gateway': (502, 'Bad Gateway', 'Bad Gateway'),
 }
 
+# if this is set to True the process will background itself at start up
+daemonise = False
+
+# security settings
+chroot = None # or a directory (string)
+chuid = None # or a user name (string)
+chgrp = None # or a group name (string)
+
+# load local_settings
 try:
     from local_settings import *
 except ImportError:

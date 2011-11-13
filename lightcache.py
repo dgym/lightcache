@@ -1,6 +1,10 @@
 import socket
 import time
 import re
+import os
+import sys
+import grp
+import pwd
 
 import evhttpconn
 import ev
@@ -182,6 +186,10 @@ class Client(evhttpconn.Connection):
 
 
 def main():
+    # daemonise
+    if settings.daemonise and os.fork() > 0:
+        sys.exit(0)
+
     global loop
     loop = ev.Loop()
 
@@ -202,8 +210,32 @@ def main():
     compress_pop_timer = ev.Timer(loop, compressor.poll, 0.01, 0.01)
     settings.compress_content = map(re.compile, settings.compress_content)
 
+    # chroot and setuid/setgid jail
+    gid = None
+    uid = None
+
+    gid_name = settings.chgrp
+    if gid_name is not None:
+        gid = grp.getgrnam(gid_name)[2]
+
+    uid_name = settings.chuid
+    if uid_name is not None:
+        uid = pwd.getpwnam(uid_name)[2]
+
+    chroot_name = settings.chroot
+    if chroot_name is not None:
+        os.chroot(chroot_name)
+        os.chdir('/')
+
+    if gid is not None:
+        os.setgid(gid)
+
+    if uid is not None:
+        os.setuid(uid)
+
     # run forever
     loop.loop(True)
+
 
 if __name__ == '__main__':
     main()

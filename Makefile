@@ -1,3 +1,6 @@
+EVHTTPCONN_DIR = ../evhttpconn
+CFLAGS += -I$(EVHTTPCONN_DIR)
+
 all: ev.so evhttpconn.so cy_compress_queue.so
 
 clean:
@@ -8,6 +11,7 @@ clean:
 
 ev.so: EXTRA_LIBS=-lev
 evhttpconn.so: EXTRA_LIBS=-lev -levhttpconn
+evhttpconn.so: LDFLAGS+=-L$(EVHTTPCONN_DIR)
 
 %.so: %.o
 	gcc -shared -o $@ $^ $(LDFLAGS) $(EXTRA_LIBS) -g
